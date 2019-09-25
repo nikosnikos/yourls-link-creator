@@ -212,20 +212,25 @@ class YOURLSCreator_Admin
 		   	return;
 		}
 
-		// check for a link and bail if one exists
-		if ( false !== $exist = YOURLSCreator_Helper::get_yourls_meta( $post_id ) ) {
-			return;
-		}
-
 		// get my post URL and title
-		$url    = YOURLSCreator_Helper::prepare_api_link( $post_id );
+		$url    = esc_url( YOURLSCreator_Helper::prepare_api_link( $post_id ) );
 		$title  = get_the_title( $post_id );
 
 		// and optional keyword
 		$keywd  = ! empty( $_POST['yourls-keyw'] ) ? YOURLSCreator_Helper::prepare_api_keyword( $_POST['yourls-keyw'] ) : '';
 
 		// set my args for the API call
-		$args   = array( 'url' => esc_url( $url ), 'title' => sanitize_text_field( $title ), 'keyword' => $keywd );
+		$args   = array( 'url' => $url, 'title' => sanitize_text_field( $title ), 'keyword' => $keywd );
+
+		// bail if shorturl exists AND longurl is the same
+		if ( false !== $shorturl = YOURLSCreator_Helper::get_yourls_meta( $post_id ) ) {
+			// make the API call
+			$args['shorturl'] = $shorturl;
+			$expanded  = YOURLSCreator_Helper::run_yourls_api_call( 'expand', $args );
+			if ( false !== $expanded['success'] && ! empty( $expanded['data']['shorturl'] ) && $expanded['data']['longurl'] === $url ) {
+				return;
+			}
+		}
 
 		// make the API call
 		$build  = YOURLSCreator_Helper::run_yourls_api_call( 'shorturl', $args );
